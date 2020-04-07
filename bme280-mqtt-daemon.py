@@ -2,7 +2,7 @@
 
 import time
 import datetime
-import socket
+import platform
 import random
 import argparse
 import configparser
@@ -32,7 +32,8 @@ def main():
     """Main program function, parse arguments, read configuration,
     setup client, listen for messages"""
 
-    myhost = socket.gethostname().split('.', 1)[0]
+    #myhost = socket.gethostname().split('.', 1)[0]
+    myhost = platform.node()
     randint = random.randint(1024, 65535)
     clientId = myhost + '-' + str(randint)
 
