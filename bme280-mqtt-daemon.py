@@ -2,8 +2,13 @@
 
 import time
 import datetime
+import socket
+import random
 import argparse
 import configparser
+import paho.mqtt.client as mqtt
+import paho.mqtt.publish as publish
+
 import RPi.GPIO as GPIO
 try:
     from smbus2 import SMBus
@@ -14,9 +19,6 @@ from bme280 import BME280
 MQTT_INI = "/etc/mqtt.ini"
 MQTT_SEC = "bme280"
 
-import paho.mqtt.client as mqtt
-import paho.mqtt.publish as publish
-
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
     if rc != 0:
@@ -26,27 +28,23 @@ def on_connect(client, userdata, flags, rc):
     # reconnect then subscriptions will be renewed.
     # client.subscribe("$SYS/#")
 
-# The callback for when a PUBLISH message is received from the server.
-def on_message(client, userdata, msg):
-    print(msg.topic+" "+str(msg.payload))
-
-
-# Initialise the BME280
-bus = SMBus(1)
-bme280 = BME280(i2c_dev=bus)
-
 def main():
     """Main program function, parse arguments, read configuration,
     setup client, listen for messages"""
-    parser = argparse.ArgumentParser()
+
+    myhost = socket.gethostname().split('.', 1)[0]
+    randint = random.randint(1024, 65535)
+    clientId = myhost + '-' + str(randint)
+
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-c', '--config', default=MQTT_INI, help="configuration file")
+    parser.add_argument('-i', '--clientid', default=clientId, help="clientId for MQTT connection")
     parser.add_argument('-s', '--section', default=MQTT_SEC, help="configuration file section")
-    parser.add_argument('-d', '--detach', action='store_true',
-                    help="fork and detach process, run as daemon")
+    parser.add_argument('-d', '--daemon', action='store_true', help="run as daemon")
     parser.add_argument('-v', '--verbose', action='store_true', help="verbose messages")
     args = parser.parse_args()
 
-    client = mqtt.Client('raspi-den-tr')
+    client = mqtt.Client(clientId)
 
     mqtt_conf = configparser.ConfigParser()
     mqtt_conf.read(args.config)
@@ -63,13 +61,16 @@ def main():
     port = int(mqtt_conf.get(args.section, 'port'))
 
     client.on_connect = on_connect
-    client.on_message = on_message
     client.connect(host, port, 60)
     client.loop_start()
 
     topic_temp  = topic + '/' + 'bme280-temperature'
     topic_hum   = topic + '/' + 'bme280-humidity'
     topic_press = topic + '/' + 'bme280-pressure'
+
+    # Initialise the BME280
+    bus = SMBus(1)
+    bme280 = BME280(i2c_dev=bus)
 
     while True:
         curr_time = time.time()
@@ -93,7 +94,7 @@ def main():
             pressure = str(round(press, 2))
             
             if args.verbose:
-                print("{0}: temperature: {1:.2f} F, pressure: {2:.2f}hPa, humidity: {3:.2f} %RH".format(str_datetime, temp, press, hum))
+                print("{0}: temperature: {1:.2f} F, pressure: {2:.2f} hPa, humidity: {3:.2f} %RH".format(str_datetime, temp, press, hum))
 
             client.publish(topic_hum, humidity)
             client.publish(topic_temp, temperature)
