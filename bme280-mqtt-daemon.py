@@ -59,10 +59,6 @@ def start_bme280_sensor(args):
     hoffset = 0
     poffset = 0
 
-    #myhost = socket.gethostname().split('.', 1)[0]
-    myhost = platform.node()
-    randint = random.randint(1024, 65535)
-    clientId = myhost + '-' + str(randint)
 
     client = mqtt.Client(clientId)
 
@@ -131,6 +127,12 @@ def start_bme280_sensor(args):
         time.sleep(1)
 
 if __name__ == '__main__':
+    
+    #myhost = socket.gethostname().split('.', 1)[0]
+    myhost = platform.node()
+    randint = random.randint(1024, 65535)
+    clientId = myhost + '-' + str(randint)
+
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-c', '--config', default=MQTT_INI, help="configuration file")
     parser.add_argument('-i', '--clientid', default=clientId, help="clientId for MQTT connection")
