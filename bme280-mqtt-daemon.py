@@ -6,6 +6,9 @@ import platform
 import random
 import argparse
 import configparser
+import logging
+import daemon
+from daemon import pidfile
 import paho.mqtt.client as mqtt
 import paho.mqtt.publish as publish
 
@@ -19,6 +22,8 @@ from bme280 import BME280
 MQTT_INI = "/etc/mqtt.ini"
 MQTT_SEC = "bme280"
 
+debug_p = False
+
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
     if rc != 0:
@@ -28,7 +33,25 @@ def on_connect(client, userdata, flags, rc):
     # reconnect then subscriptions will be renewed.
     # client.subscribe("$SYS/#")
 
-def main():
+def start_daemon(args):
+    ### This launches the daemon in its context
+
+    global debug_p
+
+    if debug_p:
+        print("bme280-mqtt: entered run()")
+        print("bme280-mqtt: pidf = {}    logf = {}".format(args.pid_file, args.log_file))
+        print("bme280-mqtt: about to start daemonization")
+
+    ### XXX pidfile is a context
+    with daemon.DaemonContext(
+        working_directory='/var/tmp',
+        umask=0o002,
+        pidfile=pidfile.TimeoutPIDLockFile(args.pid_file),
+        ) as context:
+        start_bme280_sensor(args)
+
+def start_bme280_sensor(args):
     """Main program function, parse arguments, read configuration,
     setup client, listen for messages"""
 
@@ -40,14 +63,6 @@ def main():
     myhost = platform.node()
     randint = random.randint(1024, 65535)
     clientId = myhost + '-' + str(randint)
-
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-c', '--config', default=MQTT_INI, help="configuration file")
-    parser.add_argument('-i', '--clientid', default=clientId, help="clientId for MQTT connection")
-    parser.add_argument('-s', '--section', default=MQTT_SEC, help="configuration file section")
-    parser.add_argument('-d', '--daemon', action='store_true', help="run as daemon")
-    parser.add_argument('-v', '--verbose', action='store_true', help="verbose messages")
-    args = parser.parse_args()
 
     client = mqtt.Client(clientId)
 
@@ -116,5 +131,18 @@ def main():
         time.sleep(1)
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('-c', '--config', default=MQTT_INI, help="configuration file")
+    parser.add_argument('-i', '--clientid', default=clientId, help="clientId for MQTT connection")
+    parser.add_argument('-s', '--section', default=MQTT_SEC, help="configuration file section")
+    parser.add_argument('-d', '--daemon', action='store_true', help="run as daemon")
+    parser.add_argument('-v', '--verbose', action='store_true', help="verbose messages")
+    parser.add_argument('-p', '--pid-file', default='/var/run/bme280_mqtt.pid')
+    parser.add_argument('-l', '--log-file', default='/var/log/bme280_mqtt.log')
 
+    args = parser.parse_args()
+
+    if (args.daemon):
+        start_daemon(args)
+    else:
+        start_bme280_sensor(args)
