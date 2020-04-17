@@ -32,6 +32,10 @@ def main():
     """Main program function, parse arguments, read configuration,
     setup client, listen for messages"""
 
+    toffset = 0
+    hoffset = 0
+    poffset = 0
+
     #myhost = socket.gethostname().split('.', 1)[0]
     myhost = platform.node()
     randint = random.randint(1024, 65535)
@@ -51,6 +55,15 @@ def main():
     mqtt_conf.read(args.config)
 
     topic = mqtt_conf.get(args.section, 'topic')
+
+    if (mqtt_conf.has_option(args.section, 'toffset')):
+        toffset = float(mqtt_conf.get(args.section, 'toffset'))
+
+    if (mqtt_conf.has_option(args.section, 'hoffset')):
+        hoffset = float(mqtt_conf.get(args.section, 'hoffset'))
+
+    if (mqtt_conf.has_option(args.section, 'poffset')):
+        poffset = float(mqtt_conf.get(args.section, 'poffset'))
 
     if (mqtt_conf.has_option(args.section, 'username') and
          mqtt_conf.has_option(args.section, 'password')):
@@ -77,16 +90,15 @@ def main():
         curr_time = time.time()
 
         temp  = bme280.get_temperature()
-        temp  = 9.0/5.0 * temp + 32
-        press = bme280.get_pressure()
-        hum   = bme280.get_humidity()
+        temp  = 9.0/5.0 * temp + 32 + toffset
+        press = bme280.get_pressure() + poffset
+        hum   = bme280.get_humidity() + hoffset
 
         # print('{:05.2f}*F {:05.2f}hPa {:05.2f}%'.format(temp, press, hum))
 
         my_time = int(round(curr_time))
 
         if (my_time % 60 == 0): 
-
             curr_datetime = datetime.datetime.now()
             str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
 
