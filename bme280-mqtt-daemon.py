@@ -3,7 +3,7 @@
 import time
 import datetime
 import platform
-import random
+import os
 import argparse
 import configparser
 import logging
@@ -130,17 +130,17 @@ if __name__ == '__main__':
     
     #myhost = socket.gethostname().split('.', 1)[0]
     myhost = platform.node()
-    randint = random.randint(1024, 65535)
-    clientId = myhost + '-' + str(randint)
+    mypid  = os.getpid()
+    clientId = myhost + '-' + str(mypid)
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-c', '--config', default=MQTT_INI, help="configuration file")
-    parser.add_argument('-i', '--clientid', default=clientId, help="clientId for MQTT connection")
-    parser.add_argument('-s', '--section', default=MQTT_SEC, help="configuration file section")
     parser.add_argument('-d', '--daemon', action='store_true', help="run as daemon")
-    parser.add_argument('-v', '--verbose', action='store_true', help="verbose messages")
     parser.add_argument('-p', '--pid-file', default='/var/run/bme280_mqtt.pid')
     parser.add_argument('-l', '--log-file', default='/var/log/bme280_mqtt.log')
+    parser.add_argument('-i', '--clientid', default=clientId, help="clientId for MQTT connection")
+    parser.add_argument('-s', '--section', default=MQTT_SEC, help="configuration file section")
+    parser.add_argument('-v', '--verbose', action='store_true', help="verbose messages")
 
     args = parser.parse_args()
 
