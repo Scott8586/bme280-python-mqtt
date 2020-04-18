@@ -138,12 +138,11 @@ def start_bme280_sensor(args):
         # https://www.sandhurstweather.org.uk/barometric.pdf
         if (elevation > SEALEVEL_MIN):
             # option one: Sea Level Pressure = Station Pressure / e ** -elevation / (temperature x 29.263)
-            press_S = press_A / math.exp( - elevation / (temp_K x 29.263))
+            #press_S = press_A / math.exp( - elevation / (temp_K * 29.263))
             # option two: Sea Level Pressure = Station Pressure + (elevation/9.2)
-            press_SnoT = press_A + (elevation/9.2)
+            press_S = press_A + (elevation/9.2)
         else:
-            press_SnoT = press_S = press_A
-            
+            press_S = press_A
             
         # print('{:05.2f}*F {:05.2f}% {:05.2f}hPa'.format(temp, hum, press))
 
@@ -153,10 +152,10 @@ def start_bme280_sensor(args):
             curr_datetime = datetime.datetime.now()
             str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
 
-            print ("Station: {0:.2f}hPA, TempCorrected: {1:.2f}, Simple: {2:.2f}".format(press_A, press_S, press_SnoT))
+            # print ("Station: {0:.2f}hPA, TempCorrected: {1:.2f}, Simple: {2:.2f}".format(press_A, press_S, press_SnoT))
 
             if args.verbose:
-                print("{0}: temperature: {1:.1f} F, humidity: {2:.1f} %, pressure: {3:.2f} hPa".format(str_datetime, temp_F, hum, press_A), file = fh)
+                print("{0}: temperature: {1:.1f} F, humidity: {2:.1f} %, pressure: {3:.2f} hPa, sealevel: {4:.2f} hPa".format(str_datetime, temp_F, hum, press_A, press_S), file = fh)
                 fh.flush()
 
             humidity = str(round(hum, 1))
