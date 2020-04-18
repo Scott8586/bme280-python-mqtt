@@ -4,6 +4,7 @@ import time
 import datetime
 import platform
 import os
+import signal
 import sys
 
 import argparse
@@ -24,6 +25,10 @@ from bme280 import BME280 as BME280, I2C_ADDRESS_GND as I2C_ADDRESS_GND, I2C_ADD
 MQTT_INI = "/etc/mqtt.ini"
 MQTT_SEC = "bme280"
 
+def receiveSignal(signalNumber, frame):
+    print('Received:', signalNumber)
+    exit(0)
+
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
     if rc != 0:
@@ -33,12 +38,22 @@ def start_daemon(args):
     ### This launches the daemon in its context
 
     ### XXX pidfile is a context
-    with daemon.DaemonContext(
+    context = daemon.DaemonContext(
         working_directory='/var/tmp',
         umask=0o002,
         pidfile=pidfile.TimeoutPIDLockFile(args.pid_file),
-        ) as context:
+        )
+
+    context.signal_map = {
+       signal.SIGHUP: receiveSignal,
+       signal.SIGINT: receiveSignal,
+       signal.SIGQUIT: receiveSignal,
+       signal.SIGTERM: receiveSignal,
+    }
+
+    with context:
         start_bme280_sensor(args)
+
 
 def start_bme280_sensor(args):
     """Main program function, parse arguments, read configuration,
