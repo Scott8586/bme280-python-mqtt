@@ -4,44 +4,33 @@ import time
 import datetime
 import platform
 import os
+import sys
+
 import argparse
 import configparser
-import logging
 import daemon
 from daemon import pidfile
 import paho.mqtt.client as mqtt
 import paho.mqtt.publish as publish
 
-import RPi.GPIO as GPIO
 try:
     from smbus2 import SMBus
 except ImportError:
     from smbus import SMBus
-from bme280 import BME280
+
+# Python library for the BME280 temperature, pressure and humidity sensor
+from bme280 import BME280 as BME280, I2C_ADDRESS_GND as I2C_ADDRESS_GND, I2C_ADDRESS_VCC as I2C_ADDRESS_VCC
 
 MQTT_INI = "/etc/mqtt.ini"
 MQTT_SEC = "bme280"
-
-debug_p = False
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
     if rc != 0:
         print("Connected with result code "+str(rc))
 
-    # Subscribing in on_connect() means that if we lose the connection and
-    # reconnect then subscriptions will be renewed.
-    # client.subscribe("$SYS/#")
-
 def start_daemon(args):
     ### This launches the daemon in its context
-
-    global debug_p
-
-    if debug_p:
-        print("bme280-mqtt: entered run()")
-        print("bme280-mqtt: pidf = {}    logf = {}".format(args.pid_file, args.log_file))
-        print("bme280-mqtt: about to start daemonization")
 
     ### XXX pidfile is a context
     with daemon.DaemonContext(
@@ -55,10 +44,16 @@ def start_bme280_sensor(args):
     """Main program function, parse arguments, read configuration,
     setup client, listen for messages"""
 
+    i2c_address=I2C_ADDRESS_GND # 0x76, alt is 0x77
+
     toffset = 0
     hoffset = 0
     poffset = 0
 
+    if (args.daemon):
+        fh = open(args.log_file, "w")
+    else:
+        fh = sys.stdout
 
     client = mqtt.Client(clientId)
 
@@ -66,6 +61,9 @@ def start_bme280_sensor(args):
     mqtt_conf.read(args.config)
 
     topic = mqtt_conf.get(args.section, 'topic')
+
+    if (mqtt_conf.has_option(args.section, 'address')):
+        i2c_address = int(mqtt_conf.get(args.section, 'address'), 0)
 
     if (mqtt_conf.has_option(args.section, 'toffset')):
         toffset = float(mqtt_conf.get(args.section, 'toffset'))
@@ -95,7 +93,14 @@ def start_bme280_sensor(args):
 
     # Initialise the BME280
     bus = SMBus(1)
-    bme280 = BME280(i2c_dev=bus)
+
+    bme280 = BME280(i2c_addr=i2c_address, i2c_dev=bus)
+
+    if (args.verbose):
+        curr_datetime = datetime.datetime.now()
+        str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
+        print("{0}: pid: {1:d} bme280 sensor started on 0x{2:x}, toffset: {3:0.1f} F, hoffset: {4:0.1f} %, poffset: {5:0.2f} hPa".format(str_datetime, os.getpid(), i2c_address, toffset, hoffset, poffset), file = fh)
+        fh.flush()
 
     while True:
         curr_time = time.time()
@@ -105,7 +110,7 @@ def start_bme280_sensor(args):
         press = bme280.get_pressure() + poffset
         hum   = bme280.get_humidity() + hoffset
 
-        # print('{:05.2f}*F {:05.2f}hPa {:05.2f}%'.format(temp, press, hum))
+        # print('{:05.2f}*F {:05.2f}% {:05.2f}hPa'.format(temp, hum, press))
 
         my_time = int(round(curr_time))
 
@@ -113,12 +118,13 @@ def start_bme280_sensor(args):
             curr_datetime = datetime.datetime.now()
             str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
 
-            humidity = str(round(hum, 2))
-            temperature = str(round(temp, 2))
+            humidity = str(round(hum, 1))
+            temperature = str(round(temp, 1))
             pressure = str(round(press, 2))
             
             if args.verbose:
-                print("{0}: temperature: {1:.2f} F, pressure: {2:.2f} hPa, humidity: {3:.2f} %RH".format(str_datetime, temp, press, hum))
+                print("{0}: temperature: {1:.1f} F, humidity: {2:.1f} %, pressure: {3:.2f} hPa".format(str_datetime, temp, hum, press), file = fh)
+                fh.flush()
 
             client.publish(topic_hum, humidity)
             client.publish(topic_temp, temperature)
