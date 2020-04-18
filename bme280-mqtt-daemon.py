@@ -3,6 +3,7 @@
 import time
 import datetime
 import platform
+import math
 import os
 import signal
 import sys
@@ -24,6 +25,8 @@ from bme280 import BME280 as BME280, I2C_ADDRESS_GND as I2C_ADDRESS_GND, I2C_ADD
 
 MQTT_INI = "/etc/mqtt.ini"
 MQTT_SEC = "bme280"
+
+SEALEVEL_MIN = -999
 
 def receiveSignal(signalNumber, frame):
     print('Received:', signalNumber)
@@ -64,6 +67,7 @@ def start_bme280_sensor(args):
     toffset = 0
     hoffset = 0
     poffset = 0
+    elevation = SEALEVEL_MIN
 
     if (args.daemon):
         fh = open(args.log_file, "w")
@@ -89,6 +93,9 @@ def start_bme280_sensor(args):
     if (mqtt_conf.has_option(args.section, 'poffset')):
         poffset = float(mqtt_conf.get(args.section, 'poffset'))
 
+    if (mqtt_conf.has_option(args.section, 'elevation')):
+        elevation = float(mqtt_conf.get(args.section, 'elevation'))
+
     if (mqtt_conf.has_option(args.section, 'username') and
          mqtt_conf.has_option(args.section, 'password')):
         username = mqtt_conf.get(args.section, 'username')
@@ -105,6 +112,7 @@ def start_bme280_sensor(args):
     topic_temp  = topic + '/' + 'bme280-temperature'
     topic_hum   = topic + '/' + 'bme280-humidity'
     topic_press = topic + '/' + 'bme280-pressure'
+    topic_press_S = topic + '/' + 'bme280-sealevel-pressure'
 
     # Initialise the BME280
     bus = SMBus(1)
@@ -120,11 +128,23 @@ def start_bme280_sensor(args):
     while True:
         curr_time = time.time()
 
-        temp  = bme280.get_temperature()
-        temp  = 9.0/5.0 * temp + 32 + toffset
-        press = bme280.get_pressure() + poffset
+        temp_C = bme280.get_temperature()
+        temp_F = 9.0/5.0 * temp_C + 32 + toffset
+        temp_K = temp_C + 273.15
+        
+        press_A = bme280.get_pressure() + poffset
         hum   = bme280.get_humidity() + hoffset
 
+        # https://www.sandhurstweather.org.uk/barometric.pdf
+        if (elevation > SEALEVEL_MIN):
+            # option one: Sea Level Pressure = Station Pressure / e ** -elevation / (temperature x 29.263)
+            press_S = press_A / math.exp( - elevation / (temp_K x 29.263))
+            # option two: Sea Level Pressure = Station Pressure + (elevation/9.2)
+            press_SnoT = press_A + (elevation/9.2)
+        else:
+            press_SnoT = press_S = press_A
+            
+            
         # print('{:05.2f}*F {:05.2f}% {:05.2f}hPa'.format(temp, hum, press))
 
         my_time = int(round(curr_time))
@@ -133,17 +153,23 @@ def start_bme280_sensor(args):
             curr_datetime = datetime.datetime.now()
             str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
 
-            humidity = str(round(hum, 1))
-            temperature = str(round(temp, 1))
-            pressure = str(round(press, 2))
-            
+            print ("Station: {0:.2f}hPA, TempCorrected: {1:.2f}, Simple: {2:.2f}".format(press_A, press_S, press_SnoT))
+
             if args.verbose:
-                print("{0}: temperature: {1:.1f} F, humidity: {2:.1f} %, pressure: {3:.2f} hPa".format(str_datetime, temp, hum, press), file = fh)
+                print("{0}: temperature: {1:.1f} F, humidity: {2:.1f} %, pressure: {3:.2f} hPa".format(str_datetime, temp_F, hum, press_A), file = fh)
                 fh.flush()
 
+            humidity = str(round(hum, 1))
+            temperature = str(round(temp_F, 1))
+            pressure = str(round(press_A, 2))
+            pressure_S = str(round(press_S, 2))
+            
             client.publish(topic_hum, humidity)
             client.publish(topic_temp, temperature)
             client.publish(topic_press, pressure)
+            
+            if (elevation > SEALEVEL_MIN):
+                client.publish(topic_press_S, pressure)
 
         time.sleep(1)
 
