@@ -168,7 +168,7 @@ def start_bme280_sensor(args):
             client.publish(topic_press, pressure)
             
             if (elevation > SEALEVEL_MIN):
-                client.publish(topic_press_S, pressure)
+                client.publish(topic_press_S, pressure_S)
 
         time.sleep(1)
 
