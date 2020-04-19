@@ -3,6 +3,9 @@
 Python script for reading a BME280 sensor on a raspberry pi and reporting back via MQTT
 """
 
+# pylint: disable=no-member
+# pylint: disable=unused-argument
+
 import time
 import datetime
 import platform
@@ -33,7 +36,7 @@ SEALEVEL_MIN = -999
 def receive_signal(signal_number, frame):
     """function to attach to a signal handler, and simply exit
     """
-    
+
     print('Received signal: ', signal_number)
     sys.exit(0)
 
@@ -41,17 +44,14 @@ def receive_signal(signal_number, frame):
 def on_connect(client, userdata, flags, rc):
     """function to mark the connection to a MQTT server
     """
-    
+
     if rc != 0:
         print("Connected with result code: ", str(rc))
 
 def start_daemon(args):
-    """function to start daemon, if requested
+    """function to start daemon in context, if requested
     """
 
-    ### This launches the daemon in its context
-
-    ### XXX pidfile is a context
     context = daemon.DaemonContext(
         working_directory='/var/tmp',
         umask=0o002,
@@ -81,9 +81,9 @@ def start_bme280_sensor(args):
     elevation = SEALEVEL_MIN
 
     if args.daemon:
-        fh = open(args.log_file, "w")
+        file_handle = open(args.log_file, "w")
     else:
-        fh = sys.stdout
+        file_handle = sys.stdout
 
     client = mqtt.Client(clientId)
 
@@ -108,7 +108,7 @@ def start_bme280_sensor(args):
         elevation = float(mqtt_conf.get(args.section, 'elevation'))
 
     if (mqtt_conf.has_option(args.section, 'username') and
-        mqtt_conf.has_option(args.section, 'password')):
+            mqtt_conf.has_option(args.section, 'password')):
         username = mqtt_conf.get(args.section, 'username')
         password = mqtt_conf.get(args.section, 'password')
         client.username_pw_set(username=username, password=password)
@@ -134,8 +134,8 @@ def start_bme280_sensor(args):
         curr_datetime = datetime.datetime.now()
         str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
         print("{0}: pid: {1:d} bme280 sensor started on 0x{2:x}, toffset: {3:0.1f} F, hoffset: {4:0.1f} %, poffset: {5:0.2f} hPa".
-              format(str_datetime, os.getpid(), i2c_address, toffset, hoffset, poffset), file = fh)
-        fh.flush()
+              format(str_datetime, os.getpid(), i2c_address, toffset, hoffset, poffset), file=file_handle)
+        file_handle.flush()
 
     while True:
         curr_time = time.time()
@@ -155,12 +155,12 @@ def start_bme280_sensor(args):
             press_S = press_A + (elevation/9.2)
         else:
             press_S = press_A
-            
+
         # print('{:05.2f}*F {:05.2f}% {:05.2f}hPa'.format(temp, hum, press))
 
         my_time = int(round(curr_time))
 
-        if my_time % 60 == 0: 
+        if my_time % 60 == 0:
             curr_datetime = datetime.datetime.now()
             str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -168,25 +168,25 @@ def start_bme280_sensor(args):
 
             if args.verbose:
                 print("{0}: temperature: {1:.1f} F, humidity: {2:.1f} %, pressure: {3:.2f} hPa, sealevel: {4:.2f} hPa".
-                      format(str_datetime, temp_F, hum, press_A, press_S), file=fh)
-                fh.flush()
+                      format(str_datetime, temp_F, hum, press_A, press_S), file=file_handle)
+                file_handle.flush()
 
             humidity = str(round(hum, 1))
             temperature = str(round(temp_F, 1))
             pressure = str(round(press_A, 2))
             pressure_sealevel = str(round(press_S, 2))
-            
+
             client.publish(topic_hum, humidity)
             client.publish(topic_temp, temperature)
             client.publish(topic_press, pressure)
-            
+    
             if elevation > SEALEVEL_MIN:
                 client.publish(topic_press_S, pressure_sealevel)
 
         time.sleep(1)
 
 if __name__ == '__main__':
-    
+
     #myhost = socket.gethostname().split('.', 1)[0]
     myhost = platform.node()
     mypid  = os.getpid()
