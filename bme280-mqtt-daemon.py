@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
+"""
+Python script for reading a BME280 sensor on a raspberry pi and reporting back via MQTT
+"""
 
 import time
 import datetime
 import platform
-import math
+#import math # needed only for detailed sealavel pressure calculation
 import os
 import signal
 import sys
@@ -13,7 +16,6 @@ import configparser
 import daemon
 from daemon import pidfile
 import paho.mqtt.client as mqtt
-import paho.mqtt.publish as publish
 
 try:
     from smbus2 import SMBus
@@ -21,23 +23,32 @@ except ImportError:
     from smbus import SMBus
 
 # Python library for the BME280 temperature, pressure and humidity sensor
-from bme280 import BME280 as BME280, I2C_ADDRESS_GND as I2C_ADDRESS_GND, I2C_ADDRESS_VCC as I2C_ADDRESS_VCC
+from bme280 import BME280 as BME280, I2C_ADDRESS_GND as I2C_ADDRESS_GND
 
 MQTT_INI = "/etc/mqtt.ini"
 MQTT_SEC = "bme280"
 
 SEALEVEL_MIN = -999
 
-def receiveSignal(signalNumber, frame):
-    print('Received:', signalNumber)
-    exit(0)
+def receive_signal(signal_number, frame):
+    """function to attach to a signal handler, and simply exit
+    """
+    
+    print('Received signal: ', signal_number)
+    sys.exit(0)
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
+    """function to mark the connection to a MQTT server
+    """
+    
     if rc != 0:
-        print("Connected with result code "+str(rc))
+        print("Connected with result code: ", str(rc))
 
 def start_daemon(args):
+    """function to start daemon, if requested
+    """
+
     ### This launches the daemon in its context
 
     ### XXX pidfile is a context
@@ -48,10 +59,10 @@ def start_daemon(args):
         )
 
     context.signal_map = {
-       signal.SIGHUP: receiveSignal,
-       signal.SIGINT: receiveSignal,
-       signal.SIGQUIT: receiveSignal,
-       signal.SIGTERM: receiveSignal,
+        signal.SIGHUP: receive_signal,
+        signal.SIGINT: receive_signal,
+        signal.SIGQUIT: receive_signal,
+        signal.SIGTERM: receive_signal,
     }
 
     with context:
@@ -62,14 +73,14 @@ def start_bme280_sensor(args):
     """Main program function, parse arguments, read configuration,
     setup client, listen for messages"""
 
-    i2c_address=I2C_ADDRESS_GND # 0x76, alt is 0x77
+    i2c_address = I2C_ADDRESS_GND # 0x76, alt is 0x77
 
     toffset = 0
     hoffset = 0
     poffset = 0
     elevation = SEALEVEL_MIN
 
-    if (args.daemon):
+    if args.daemon:
         fh = open(args.log_file, "w")
     else:
         fh = sys.stdout
@@ -81,23 +92,23 @@ def start_bme280_sensor(args):
 
     topic = mqtt_conf.get(args.section, 'topic')
 
-    if (mqtt_conf.has_option(args.section, 'address')):
+    if mqtt_conf.has_option(args.section, 'address'):
         i2c_address = int(mqtt_conf.get(args.section, 'address'), 0)
 
-    if (mqtt_conf.has_option(args.section, 'toffset')):
+    if mqtt_conf.has_option(args.section, 'toffset'):
         toffset = float(mqtt_conf.get(args.section, 'toffset'))
 
-    if (mqtt_conf.has_option(args.section, 'hoffset')):
+    if mqtt_conf.has_option(args.section, 'hoffset'):
         hoffset = float(mqtt_conf.get(args.section, 'hoffset'))
 
-    if (mqtt_conf.has_option(args.section, 'poffset')):
+    if mqtt_conf.has_option(args.section, 'poffset'):
         poffset = float(mqtt_conf.get(args.section, 'poffset'))
 
-    if (mqtt_conf.has_option(args.section, 'elevation')):
+    if mqtt_conf.has_option(args.section, 'elevation'):
         elevation = float(mqtt_conf.get(args.section, 'elevation'))
 
     if (mqtt_conf.has_option(args.section, 'username') and
-         mqtt_conf.has_option(args.section, 'password')):
+        mqtt_conf.has_option(args.section, 'password')):
         username = mqtt_conf.get(args.section, 'username')
         password = mqtt_conf.get(args.section, 'password')
         client.username_pw_set(username=username, password=password)
@@ -119,10 +130,11 @@ def start_bme280_sensor(args):
 
     bme280 = BME280(i2c_addr=i2c_address, i2c_dev=bus)
 
-    if (args.verbose):
+    if args.verbose:
         curr_datetime = datetime.datetime.now()
         str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
-        print("{0}: pid: {1:d} bme280 sensor started on 0x{2:x}, toffset: {3:0.1f} F, hoffset: {4:0.1f} %, poffset: {5:0.2f} hPa".format(str_datetime, os.getpid(), i2c_address, toffset, hoffset, poffset), file = fh)
+        print("{0}: pid: {1:d} bme280 sensor started on 0x{2:x}, toffset: {3:0.1f} F, hoffset: {4:0.1f} %, poffset: {5:0.2f} hPa".
+              format(str_datetime, os.getpid(), i2c_address, toffset, hoffset, poffset), file = fh)
         fh.flush()
 
     while True:
@@ -136,7 +148,7 @@ def start_bme280_sensor(args):
         hum   = bme280.get_humidity() + hoffset
 
         # https://www.sandhurstweather.org.uk/barometric.pdf
-        if (elevation > SEALEVEL_MIN):
+        if elevation > SEALEVEL_MIN:
             # option one: Sea Level Pressure = Station Pressure / e ** -elevation / (temperature x 29.263)
             #press_S = press_A / math.exp( - elevation / (temp_K * 29.263))
             # option two: Sea Level Pressure = Station Pressure + (elevation/9.2)
@@ -148,27 +160,28 @@ def start_bme280_sensor(args):
 
         my_time = int(round(curr_time))
 
-        if (my_time % 60 == 0): 
+        if my_time % 60 == 0: 
             curr_datetime = datetime.datetime.now()
             str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
 
             # print ("Station: {0:.2f}hPA, TempCorrected: {1:.2f}, Simple: {2:.2f}".format(press_A, press_S, press_SnoT))
 
             if args.verbose:
-                print("{0}: temperature: {1:.1f} F, humidity: {2:.1f} %, pressure: {3:.2f} hPa, sealevel: {4:.2f} hPa".format(str_datetime, temp_F, hum, press_A, press_S), file = fh)
+                print("{0}: temperature: {1:.1f} F, humidity: {2:.1f} %, pressure: {3:.2f} hPa, sealevel: {4:.2f} hPa".
+                      format(str_datetime, temp_F, hum, press_A, press_S), file=fh)
                 fh.flush()
 
             humidity = str(round(hum, 1))
             temperature = str(round(temp_F, 1))
             pressure = str(round(press_A, 2))
-            pressure_S = str(round(press_S, 2))
+            pressure_sealevel = str(round(press_S, 2))
             
             client.publish(topic_hum, humidity)
             client.publish(topic_temp, temperature)
             client.publish(topic_press, pressure)
             
-            if (elevation > SEALEVEL_MIN):
-                client.publish(topic_press_S, pressure_S)
+            if elevation > SEALEVEL_MIN:
+                client.publish(topic_press_S, pressure_sealevel)
 
         time.sleep(1)
 
@@ -190,7 +203,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if (args.daemon):
+    if args.daemon:
         start_daemon(args)
     else:
         start_bme280_sensor(args)
