@@ -1,0 +1,7 @@
+argparse
+configparser
+daemon
+paho-mqtt
+smbus2
+bme280
+pylint
