@@ -5,4 +5,4 @@ cache: pip3
 install:
   - pip3 install -r requirements.txt
 script:
-  - pylint --errors-only --unsafe-load-any-extension bme280-mqtt-daemon.py
+  - pylint --errors-only --unsafe-load-any-extension=y bme280-mqtt-daemon.py
