@@ -1,6 +1,6 @@
 argparse
 configparser
-daemon
+python-daemon
 paho-mqtt
 smbus2
 bme280
