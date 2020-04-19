@@ -26,7 +26,7 @@ except ImportError:
     from smbus import SMBus
 
 # Python library for the BME280 temperature, pressure and humidity sensor
-from bme280 import BME280 as BME280, I2C_ADDRESS_GND as I2C_ADDRESS_GND
+import bme280
 
 MQTT_INI = "/etc/mqtt.ini"
 MQTT_SEC = "bme280"
@@ -41,12 +41,12 @@ def receive_signal(signal_number, frame):
     sys.exit(0)
 
 # The callback for when the client receives a CONNACK response from the server.
-def on_connect(client, userdata, flags, rc):
+def on_connect(client, userdata, flags, return_code):
     """function to mark the connection to a MQTT server
     """
 
     if rc != 0:
-        print("Connected with result code: ", str(rc))
+        print("Connected with result code: ", str(return_code))
 
 def start_daemon(args):
     """function to start daemon in context, if requested
@@ -73,7 +73,7 @@ def start_bme280_sensor(args):
     """Main program function, parse arguments, read configuration,
     setup client, listen for messages"""
 
-    i2c_address = I2C_ADDRESS_GND # 0x76, alt is 0x77
+    i2c_address = bme280.I2C_ADDRESS_GND # 0x76, alt is 0x77
 
     toffset = 0
     hoffset = 0
@@ -85,7 +85,7 @@ def start_bme280_sensor(args):
     else:
         file_handle = sys.stdout
 
-    client = mqtt.Client(clientId)
+    client = mqtt.Client(args.clientid)
 
     mqtt_conf = configparser.ConfigParser()
     mqtt_conf.read(args.config)
@@ -128,7 +128,7 @@ def start_bme280_sensor(args):
     # Initialise the BME280
     bus = SMBus(1)
 
-    bme280 = BME280(i2c_addr=i2c_address, i2c_dev=bus)
+    sensor = bme280.BME280(i2c_addr=i2c_address, i2c_dev=bus)
 
     if args.verbose:
         curr_datetime = datetime.datetime.now()
@@ -140,12 +140,12 @@ def start_bme280_sensor(args):
     while True:
         curr_time = time.time()
 
-        temp_C = bme280.get_temperature()
+        temp_C = sensor.get_temperature()
         temp_F = 9.0/5.0 * temp_C + 32 + toffset
         temp_K = temp_C + 273.15
-        
-        press_A = bme280.get_pressure() + poffset
-        hum   = bme280.get_humidity() + hoffset
+
+        press_A = sensor.get_pressure() + poffset
+        hum   = sensor.get_humidity() + hoffset
 
         # https://www.sandhurstweather.org.uk/barometric.pdf
         if elevation > SEALEVEL_MIN:
