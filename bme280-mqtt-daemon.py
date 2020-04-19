@@ -45,7 +45,7 @@ def on_connect(client, userdata, flags, return_code):
     """function to mark the connection to a MQTT server
     """
 
-    if rc != 0:
+    if return_code != 0:
         print("Connected with result code: ", str(return_code))
 
 def start_daemon(args):
