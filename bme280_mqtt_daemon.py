@@ -40,13 +40,14 @@ def receive_signal(signal_number, frame):
     print('Received signal: ', signal_number)
     sys.exit(0)
 
-# The callback for when the client receives a CONNACK response from the server.
+
 def on_connect(client, userdata, flags, return_code):
     """function to mark the connection to a MQTT server
     """
 
     if return_code != 0:
         print("Connected with result code: ", str(return_code))
+
 
 def start_daemon(args):
     """function to start daemon in context, if requested
@@ -179,7 +180,7 @@ def start_bme280_sensor(args):
             client.publish(topic_hum, humidity)
             client.publish(topic_temp, temperature)
             client.publish(topic_press, pressure)
-    
+
             if elevation > SEALEVEL_MIN:
                 client.publish(topic_press_S, pressure_sealevel)
 
