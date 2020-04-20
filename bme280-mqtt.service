@@ -7,7 +7,7 @@ User=root
 #Restart=always
 Type=simple
 PIDFile=/var/run/bme280_mqtt.pid
-ExecStart=/usr/bin/python3 /usr/local/bin/bme280-mqtt-daemon.py -d
+ExecStart=/usr/bin/python3 /usr/local/bin/bme280_mqtt_daemon.py -d
 
 [Install]
 WantedBy=multi-user.target
