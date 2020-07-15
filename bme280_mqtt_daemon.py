@@ -27,6 +27,7 @@ except ImportError:
     from smbus import SMBus
 
 # Python library for the BME280 temperature, pressure and humidity sensor
+# pylint: disable=import-error
 import bme280
 
 MQTT_INI = "/etc/mqtt.ini"
@@ -35,7 +36,8 @@ MQTT_SEC = "bme280"
 SEALEVEL_MIN = -999
 
 class Options(object):
-    
+    """Object for holding option variables
+    """
     def __init__(self):
         self.toffset = 0
         self.hoffset = 0
@@ -60,15 +62,15 @@ def on_connect(client, userdata, flags, return_code):
         print("Connected with result code: ", str(return_code))
 
 
-def publish_mqtt(client, sensor, options, file_handle):
+def publish_mqtt(client, sensor, options, file_handle, verbose=False):
     """Publish the sensor data to mqtt, in either flat, or JSON format
     """
-    
+
     topic_temp  = options.topic + '/' + 'bme680-temperature'
     topic_hum   = options.topic + '/' + 'bme680-humidity'
     topic_press = options.topic + '/' + 'bme680-pressure'
     topic_press_S = options.topic + '/' + 'bme680-sealevel-pressure'
-    
+
     hum = sensor.get_humidity() + options.hoffset
 
     temp_C = sensor.get_temperature()
@@ -87,11 +89,11 @@ def publish_mqtt(client, sensor, options, file_handle):
         press_S = press_A
 
     curr_datetime = datetime.datetime.now()
-    
-    if args.verbose:
+
+    if verbose:
         str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
         print("{0}: temperature: {1:.1f} F, humidity: {2:.1f} %RH, pressure: {3:.2f} hPa, sealevel: {4:.2f} hPa".
-            format(str_datetime, temp_F, hum, press_A, press_S), file=file_handle)
+              format(str_datetime, temp_F, hum, press_A, press_S), file=file_handle)
         file_handle.flush()
 
     if options.format == "flat":
@@ -99,14 +101,14 @@ def publish_mqtt(client, sensor, options, file_handle):
         humidity = str(round(hum, 1))
         pressure = str(round(press_A, 2))
         pressure_sealevel = str(round(press_S, 2))
-    
+
         client.publish(topic_temp, temperature)
         client.publish(topic_hum, humidity)
         client.publish(topic_press, pressure)
-        
+
         if options.elevation > SEALEVEL_MIN:
             client.publish(topic_press_S, pressure_sealevel)
-                    
+
     else:
         data = {}
         data['humidity'] = round(hum, 1)
@@ -147,7 +149,7 @@ def start_bme280_sensor(args):
     i2c_address = bme280.I2C_ADDRESS_GND # 0x76, alt is 0x77
 
     options = Options()
-    
+
     if args.daemon:
         file_handle = open(args.log_file, "w")
     else:
@@ -208,29 +210,35 @@ def start_bme280_sensor(args):
         my_time = int(round(curr_time))
 
         if my_time % 60 == 0:
-            publish_mqtt(client, sensor, options, file_handle)
- 
+            publish_mqtt(client, sensor, options, file_handle, args.verbose)
+
         time.sleep(1)
 
-if __name__ == '__main__':
+
+def main():
+    """Main function call
+    """
 
     #myhost = socket.gethostname().split('.', 1)[0]
-    myhost = platform.node()
-    mypid  = os.getpid()
-    clientId = myhost + '-' + str(mypid)
+    my_host = platform.node()
+    my_pid = os.getpid()
+    client_id = my_host + '-' + str(my_pid)
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-c', '--config', default=MQTT_INI, help="configuration file")
     parser.add_argument('-d', '--daemon', action='store_true', help="run as daemon")
     parser.add_argument('-p', '--pid-file', default='/var/run/bme280_mqtt.pid')
     parser.add_argument('-l', '--log-file', default='/var/log/bme280_mqtt.log')
-    parser.add_argument('-i', '--clientid', default=clientId, help="clientId for MQTT connection")
+    parser.add_argument('-i', '--clientid', default=client_id, help="clientId for MQTT connection")
     parser.add_argument('-s', '--section', default=MQTT_SEC, help="configuration file section")
     parser.add_argument('-v', '--verbose', action='store_true', help="verbose messages")
 
-    args = parser.parse_args()
+    cmdline_args = parser.parse_args()
 
-    if args.daemon:
-        start_daemon(args)
+    if cmdline_args.daemon:
+        start_daemon(cmdline_args)
     else:
-        start_bme280_sensor(args)
+        start_bme280_sensor(cmdline_args)
+
+if __name__ == '__main__':
+    main()

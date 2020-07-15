@@ -23,7 +23,7 @@ The following packages are required beyond stock python3.5 to get this running:
 	python-daemon
 	paho-mqtt
 	smbus2
-	pimoroni-bme280
+	bme280
 
 
 ### Notes
