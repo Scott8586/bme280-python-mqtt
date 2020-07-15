@@ -91,13 +91,6 @@ def on_connect(client, userdata, flags, return_code):
     else:
         client.publish(status_topic, "Online", retain=True)
 
-
-def on_disconnect(client, userdata, return_code):
-    """function to track disconnects
-    """
-
-    client.publish(status_topic, "Offline", retain=True)
-
     
 def publish_mqtt(client, sensor_data, options, topics, file_handle, verbose=False):
     """Publish the sensor data to mqtt, in either flat, or JSON format
@@ -232,7 +225,7 @@ def start_bme280_sensor(args):
     port = int(mqtt_conf.get(args.section, 'port'))
 
     client.on_connect = on_connect
-    client.on_disconnect = on_disconnect
+#    client.on_disconnect = on_disconnect
     client.connect(host, port, 60)
     client.loop_start()
 
@@ -273,7 +266,8 @@ def start_bme280_sensor(args):
     curr_datetime = datetime.datetime.now()
     str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
     print("{0}: pid: {1:d}, bme280 sensor interrupted".format(str_datetime, os.getpid()), file=file_handle)
-
+    client.publish(status_topic, "Offline", retain=True)
+    
     client.disconnect()
 
 
