@@ -42,9 +42,19 @@ class Options(object):
         self.toffset = 0
         self.hoffset = 0
         self.poffset = 0
-        self.topic = ""
+        self.root_topic = ""
         self.elevation = SEALEVEL_MIN
         self.format = "flat"
+
+class Topics(object):
+    """Object for handing topic strings
+    """
+    
+    def __init__(self, root_topic, section):
+        self.temperature  = root_topic + '/' + section + '_temperature'
+        self.humidity   = root_topic + '/' + section + '_humidity'
+        self.pressure = root_topic + '/' + section + '_pressure'
+        self.sealevel_pressure = root_topic + '/' + section + '_sealevel_pressure'
 
 def receive_signal(signal_number, frame):
     """function to attach to a signal handler, and simply exit
@@ -62,14 +72,10 @@ def on_connect(client, userdata, flags, return_code):
         print("Connected with result code: ", str(return_code))
 
 
-def publish_mqtt(client, sensor, options, file_handle, verbose=False):
+def publish_mqtt(client, sensor, options, topics, file_handle, verbose=False):
     """Publish the sensor data to mqtt, in either flat, or JSON format
     """
 
-    topic_temp  = options.topic + '/' + 'bme680-temperature'
-    topic_hum   = options.topic + '/' + 'bme680-humidity'
-    topic_press = options.topic + '/' + 'bme680-pressure'
-    topic_press_S = options.topic + '/' + 'bme680-sealevel-pressure'
 
     hum = sensor.get_humidity() + options.hoffset
 
@@ -102,12 +108,12 @@ def publish_mqtt(client, sensor, options, file_handle, verbose=False):
         pressure = str(round(press_A, 2))
         pressure_sealevel = str(round(press_S, 2))
 
-        client.publish(topic_temp, temperature)
-        client.publish(topic_hum, humidity)
-        client.publish(topic_press, pressure)
+        client.publish(topic.temperature, temperature)
+        client.publish(topic.humidity, humidity)
+        client.publish(topic.pressure, pressure)
 
         if options.elevation > SEALEVEL_MIN:
-            client.publish(topic_press_S, pressure_sealevel)
+            client.publish(topic.sealevel_pressure, pressure_sealevel)
 
     else:
         data = {}
@@ -119,7 +125,7 @@ def publish_mqtt(client, sensor, options, file_handle, verbose=False):
         data['timestamp'] = curr_datetime.replace(microsecond=0).isoformat()
 
         #json_data = json.dumps(data)
-        client.publish(options.topic, json.dumps(data))
+        client.publish(options.root_topic, json.dumps(data))
 
 def start_daemon(args):
     """function to start daemon in context, if requested
@@ -160,8 +166,10 @@ def start_bme280_sensor(args):
     mqtt_conf = configparser.ConfigParser()
     mqtt_conf.read(args.config)
 
-    options.topic = mqtt_conf.get(args.section, 'topic')
+    options.root_topic = mqtt_conf.get(args.section, 'topic')
 
+    topics = Topics(options.root_topic, args.section)
+    
     if mqtt_conf.has_option(args.section, 'address'):
         i2c_address = int(mqtt_conf.get(args.section, 'address'), 0)
 
@@ -210,7 +218,7 @@ def start_bme280_sensor(args):
         my_time = int(round(curr_time))
 
         if my_time % 60 == 0:
-            publish_mqtt(client, sensor, options, file_handle, args.verbose)
+            publish_mqtt(client, sensor, options, topics, file_handle, args.verbose)
 
         time.sleep(1)
 

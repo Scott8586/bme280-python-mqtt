@@ -23,7 +23,7 @@ The following packages are required beyond stock python3.5 to get this running:
 	python-daemon
 	paho-mqtt
 	smbus2
-	bme280
+	pimoroni-bme280
 
 
 ### Notes
@@ -31,8 +31,8 @@ The following packages are required beyond stock python3.5 to get this running:
 configparser has recently been upgraded past python3.5, but that's the latest version of python on jesse, so you may have to install it like so:
 
 ```
-	pip3 install configparser=4.0.2
-``````
+	pip3 install configparser==4.0.2
+```
 
 ### Home Assistant
 

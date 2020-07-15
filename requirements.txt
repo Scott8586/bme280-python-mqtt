@@ -3,5 +3,5 @@ configparser==4.0.2
 python-daemon
 paho-mqtt
 smbus2
-bme280
+pimoroni-bme280
 pylint
