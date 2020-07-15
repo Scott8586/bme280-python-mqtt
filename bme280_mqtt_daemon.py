@@ -35,6 +35,8 @@ MQTT_SEC = "bme280"
 
 SEALEVEL_MIN = -999
 
+SLEEP_TIME = 1 # in seconds
+
 class Options(object):
     """Object for holding option variables
     """
@@ -85,7 +87,6 @@ def on_connect(client, userdata, flags, return_code):
 def publish_mqtt(client, sensor_data, options, topics, file_handle, verbose=False):
     """Publish the sensor data to mqtt, in either flat, or JSON format
     """
-
 
     hum = sensor_data.humidity + options.hoffset
 
@@ -215,7 +216,11 @@ def start_bme280_sensor(args):
     bus = SMBus(1)
 
     sensor = bme280.BME280(i2c_addr=i2c_address, i2c_dev=bus)
-    sensor_data = SensorData()
+    sensor_standby = SLEEP_TIME * 1000
+    bme280.setup(temperature_standby=sensor_standby) # Sync to sleep() call (in ms), when in normal mode
+    
+    sensor_data = SensorData() # Initialize a sensor_data object to hold the information
+    
     first_read = True # problems with the first read of the data.
     
     if args.verbose:
@@ -237,7 +242,7 @@ def start_bme280_sensor(args):
                 publish_mqtt(client, sensor_data, options, topics, file_handle, args.verbose)
             first_read = False
 
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
 
 
 def main():
