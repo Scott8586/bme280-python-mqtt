@@ -270,8 +270,11 @@ def start_bme280_sensor(args):
 
         time.sleep(SLEEP_TIME)
 
-    client.disconnect()
+    curr_datetime = datetime.datetime.now()
+    str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
+    print("{0}: pid: {1:d}, bme280 sensor interrupted".format(str_datetime, os.getpid()), file=file_handle)
 
+    client.disconnect()
 
 
 def main():
