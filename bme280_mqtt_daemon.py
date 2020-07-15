@@ -20,7 +20,7 @@ import configparser
 import daemon
 from daemon import pidfile
 import paho.mqtt.client as mqtt
-from builtins import object
+from builtins import object, True
 
 try:
     from smbus2 import SMBus
@@ -217,6 +217,7 @@ def start_bme280_sensor(args):
 
     sensor = bme280.BME280(i2c_addr=i2c_address, i2c_dev=bus)
     sensor_data = SensorData()
+    first_read = True # problems with the first read of the data.
     
     if args.verbose:
         curr_datetime = datetime.datetime.now()
@@ -233,7 +234,9 @@ def start_bme280_sensor(args):
         sensor_data.pressure = sensor.get_pressure()
         
         if my_time % 60 == 0:
-            publish_mqtt(client, sensor_data, options, topics, file_handle, args.verbose)
+            if first_read == False:
+                publish_mqtt(client, sensor_data, options, topics, file_handle, args.verbose)
+            first_read = False
 
         time.sleep(1)
 
