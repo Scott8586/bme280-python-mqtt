@@ -20,7 +20,6 @@ import configparser
 import daemon
 from daemon import pidfile
 import paho.mqtt.client as mqtt
-from builtins import object, True
 
 try:
     from smbus2 import SMBus
