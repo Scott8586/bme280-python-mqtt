@@ -20,6 +20,7 @@ import configparser
 import daemon
 from daemon import pidfile
 import paho.mqtt.client as mqtt
+from builtins import object
 
 try:
     from smbus2 import SMBus
@@ -56,6 +57,16 @@ class Topics(object):
         self.pressure = root_topic + '/' + section + '_pressure'
         self.sealevel_pressure = root_topic + '/' + section + '_sealevel_pressure'
 
+class SensorData(object):
+    """Sensor Data Object
+    """
+    
+    def __init__(self):
+        self.temperature = 0
+        self.humidity = 0
+        self.pressure = 0
+
+        
 def receive_signal(signal_number, frame):
     """function to attach to a signal handler, and simply exit
     """
@@ -72,18 +83,18 @@ def on_connect(client, userdata, flags, return_code):
         print("Connected with result code: ", str(return_code))
 
 
-def publish_mqtt(client, sensor, options, topics, file_handle, verbose=False):
+def publish_mqtt(client, sensor_data, options, topics, file_handle, verbose=False):
     """Publish the sensor data to mqtt, in either flat, or JSON format
     """
 
 
-    hum = sensor.get_humidity() + options.hoffset
+    hum = sensor_data.humidity + options.hoffset
 
-    temp_C = sensor.get_temperature()
+    temp_C = sensor_data.temperature
     temp_F = 9.0/5.0 * temp_C + 32 + options.toffset
     temp_K = temp_C + 273.15
 
-    press_A = sensor.get_pressure() + options.poffset
+    press_A = sensor_data.pressure + options.poffset
 
     # https://www.sandhurstweather.org.uk/barometric.pdf
     if options.elevation > SEALEVEL_MIN:
@@ -205,7 +216,8 @@ def start_bme280_sensor(args):
     bus = SMBus(1)
 
     sensor = bme280.BME280(i2c_addr=i2c_address, i2c_dev=bus)
-
+    sensor_data = SensorData()
+    
     if args.verbose:
         curr_datetime = datetime.datetime.now()
         str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
@@ -216,9 +228,12 @@ def start_bme280_sensor(args):
     while True:
         curr_time = time.time()
         my_time = int(round(curr_time))
-
+        sensor_data.temperature = sensor.get_temperature()
+        sensor_data.humidity = sensor.get_humidity()
+        sensor_data.pressure = sensor.get_pressure()
+        
         if my_time % 60 == 0:
-            publish_mqtt(client, sensor, options, topics, file_handle, args.verbose)
+            publish_mqtt(client, sensor_data, options, topics, file_handle, args.verbose)
 
         time.sleep(1)
 
