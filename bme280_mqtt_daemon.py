@@ -108,12 +108,12 @@ def publish_mqtt(client, sensor, options, topics, file_handle, verbose=False):
         pressure = str(round(press_A, 2))
         pressure_sealevel = str(round(press_S, 2))
 
-        client.publish(topic.temperature, temperature)
-        client.publish(topic.humidity, humidity)
-        client.publish(topic.pressure, pressure)
+        client.publish(topics.temperature, temperature)
+        client.publish(topics.humidity, humidity)
+        client.publish(topics.pressure, pressure)
 
         if options.elevation > SEALEVEL_MIN:
-            client.publish(topic.sealevel_pressure, pressure_sealevel)
+            client.publish(topics.sealevel_pressure, pressure_sealevel)
 
     else:
         data = {}
