@@ -37,6 +37,9 @@ SEALEVEL_MIN = -999
 
 SLEEP_TIME = 1 # in seconds
 
+status_topic = ""
+read_loop = True
+
 class Options(object):
     """Object for holding option variables
     """
@@ -47,33 +50,36 @@ class Options(object):
         self.root_topic = ""
         self.elevation = SEALEVEL_MIN
         self.format = "flat"
+        self.mode = "normal"
 
 class Topics(object):
     """Object for handing topic strings
     """
-    
+
     def __init__(self, root_topic, section):
-        self.temperature  = root_topic + '/' + section + '_temperature'
-        self.humidity   = root_topic + '/' + section + '_humidity'
+        self.temperature = root_topic + '/' + section + '_temperature'
+        self.humidity = root_topic + '/' + section + '_humidity'
         self.pressure = root_topic + '/' + section + '_pressure'
         self.sealevel_pressure = root_topic + '/' + section + '_sealevel_pressure'
 
 class SensorData(object):
     """Sensor Data Object
     """
-    
+
     def __init__(self):
         self.temperature = 0
         self.humidity = 0
         self.pressure = 0
 
-        
+
 def receive_signal(signal_number, frame):
     """function to attach to a signal handler, and simply exit
     """
 
+    global read_loop
+
     print('Received signal: ', signal_number)
-    sys.exit(0)
+    read_loop = False
 
 
 def on_connect(client, userdata, flags, return_code):
@@ -82,8 +88,17 @@ def on_connect(client, userdata, flags, return_code):
 
     if return_code != 0:
         print("Connected with result code: ", str(return_code))
+    else:
+        client.publish(status_topic, "Online", retain=True)
 
 
+def on_disconnect(client, userdata, return_code):
+    """function to track disconnects
+    """
+
+    client.publish(status_topic, "Offline", retain=True)
+
+    
 def publish_mqtt(client, sensor_data, options, topics, file_handle, verbose=False):
     """Publish the sensor data to mqtt, in either flat, or JSON format
     """
@@ -138,6 +153,8 @@ def publish_mqtt(client, sensor_data, options, topics, file_handle, verbose=Fals
         #json_data = json.dumps(data)
         client.publish(options.root_topic, json.dumps(data))
 
+    return
+
 def start_daemon(args):
     """function to start daemon in context, if requested
     """
@@ -163,6 +180,8 @@ def start_bme280_sensor(args):
     """Main program function, parse arguments, read configuration,
     setup client, listen for messages"""
 
+    global status_topic, read_loop
+
     i2c_address = bme280.I2C_ADDRESS_GND # 0x76, alt is 0x77
 
     options = Options()
@@ -180,9 +199,13 @@ def start_bme280_sensor(args):
     options.root_topic = mqtt_conf.get(args.section, 'topic')
 
     topics = Topics(options.root_topic, args.section)
-    
+    status_topic = options.root_topic + '/' + "LWT"
+
     if mqtt_conf.has_option(args.section, 'address'):
         i2c_address = int(mqtt_conf.get(args.section, 'address'), 0)
+
+    if mqtt_conf.has_option(args.section, 'mode'):
+        options.mode = mqtt_conf.get(args.section, 'mode')
 
     if mqtt_conf.has_option(args.section, 'toffset'):
         options.toffset = float(mqtt_conf.get(args.section, 'toffset'))
@@ -209,28 +232,31 @@ def start_bme280_sensor(args):
     port = int(mqtt_conf.get(args.section, 'port'))
 
     client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
     client.connect(host, port, 60)
     client.loop_start()
+
+    sensor_standby = SLEEP_TIME * 1000
 
     # Initialise the BME280
     bus = SMBus(1)
 
     sensor = bme280.BME280(i2c_addr=i2c_address, i2c_dev=bus)
-    sensor_standby = SLEEP_TIME * 1000
-    bme280.setup(temperature_standby=sensor_standby) # Sync to sleep() call (in ms), when in normal mode
-    
+    sensor.setup(mode=options.mode, temperature_standby=sensor_standby) # Sync to sleep() call (in ms), when in normal mode
+
     sensor_data = SensorData() # Initialize a sensor_data object to hold the information
-    
-    first_read = True # problems with the first read of the data.
-    
+
+    first_read = True # problems with the first read of the data? seems ok in forced mode.
+    read_loop = True
+
     if args.verbose:
         curr_datetime = datetime.datetime.now()
         str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
-        print("{0}: pid: {1:d} bme280 sensor started on 0x{2:x}, toffset: {3:0.1f} F, hoffset: {4:0.1f} %, poffset: {5:0.2f} hPa".
+        print("{0}: pid: {1:d}, bme280 sensor started on 0x{2:x}, toffset: {3:0.1f} F, hoffset: {4:0.1f} %, poffset: {5:0.2f} hPa".
               format(str_datetime, os.getpid(), i2c_address, options.toffset, options.hoffset, options.poffset), file=file_handle)
         file_handle.flush()
 
-    while True:
+    while read_loop:
         curr_time = time.time()
         my_time = int(round(curr_time))
         sensor_data.temperature = sensor.get_temperature()
@@ -238,11 +264,14 @@ def start_bme280_sensor(args):
         sensor_data.pressure = sensor.get_pressure()
         
         if my_time % 60 == 0:
-            if first_read == False:
+            if not first_read:
                 publish_mqtt(client, sensor_data, options, topics, file_handle, args.verbose)
             first_read = False
 
         time.sleep(SLEEP_TIME)
+
+    client.disconnect()
+
 
 
 def main():
@@ -272,3 +301,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    sys.exit(0)
