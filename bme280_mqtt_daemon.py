@@ -35,8 +35,8 @@ MQTT_SEC = "bme280"
 
 SEALEVEL_MIN = -999
 
-SLEEP_TIME = 1 # in seconds
-
+SLEEP_TIME = 0.9 # in seconds
+SENSOR_STANDBY = 1000
 status_topic = ""
 read_loop = True
 
@@ -229,13 +229,12 @@ def start_bme280_sensor(args):
     client.connect(host, port, 60)
     client.loop_start()
 
-    sensor_standby = SLEEP_TIME * 1000
-
     # Initialise the BME280
     bus = SMBus(1)
 
     sensor = bme280.BME280(i2c_addr=i2c_address, i2c_dev=bus)
-    sensor.setup(mode=options.mode, temperature_standby=sensor_standby) # Sync to sleep() call (in ms), when in normal mode
+    sensor.setup(mode=options.mode, temperature_standby=SENSOR_STANDBY) # Sync to sleep() call (in ms), when in normal mode
+    sensor.setup(mode=options.mode)
 
     sensor_data = SensorData() # Initialize a sensor_data object to hold the information
 
@@ -245,8 +244,8 @@ def start_bme280_sensor(args):
     if args.verbose:
         curr_datetime = datetime.datetime.now()
         str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
-        print("{0}: pid: {1:d}, bme280 sensor started on 0x{2:x}, toffset: {3:0.1f} F, hoffset: {4:0.1f} %, poffset: {5:0.2f} hPa".
-              format(str_datetime, os.getpid(), i2c_address, options.toffset, options.hoffset, options.poffset), file=file_handle)
+        print("{0}: pid: {1:d}, bme280 sensor started on 0x{2:x}, mode: {3:s}, toffset: {4:0.1f} F, hoffset: {5:0.1f} %, poffset: {6:0.2f} hPa".
+              format(str_datetime, os.getpid(), i2c_address, options.mode, options.toffset, options.hoffset, options.poffset), file=file_handle)
         file_handle.flush()
 
     while read_loop:
@@ -260,6 +259,8 @@ def start_bme280_sensor(args):
             if not first_read:
                 publish_mqtt(client, sensor_data, options, topics, file_handle, args.verbose)
             first_read = False
+            done_time = time.time()
+#            print("difference = {0}".format(done_time - curr_time))
 
         time.sleep(SLEEP_TIME)
 
