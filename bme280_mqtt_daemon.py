@@ -35,7 +35,7 @@ MQTT_SEC = "bme280"
 
 SEALEVEL_MIN = -999
 
-SLEEP_TIME = 0.9 # in seconds
+SLEEP_TIME = 1 # in seconds
 SENSOR_STANDBY = 1000
 status_topic = ""
 read_loop = True
@@ -233,8 +233,11 @@ def start_bme280_sensor(args):
     bus = SMBus(1)
 
     sensor = bme280.BME280(i2c_addr=i2c_address, i2c_dev=bus)
-    sensor.setup(mode=options.mode, temperature_standby=SENSOR_STANDBY) # Sync to sleep() call (in ms), when in normal mode
+
+    # print("pre setup = {0}".format(sensor._is_setup))
+    #sensor.setup(mode=options.mode, temperature_standby=SENSOR_STANDBY) # Sync to sleep() call (in ms), when in normal mode
     sensor.setup(mode=options.mode)
+    #print("post setup = {0}".format(sensor._is_setup))
 
     sensor_data = SensorData() # Initialize a sensor_data object to hold the information
 
@@ -255,6 +258,15 @@ def start_bme280_sensor(args):
         sensor_data.humidity = sensor.get_humidity()
         sensor_data.pressure = sensor.get_pressure()
         
+        if not first_read and sensor_data.pressure < 800:
+            curr_datetime = datetime.datetime.now()
+            str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
+            print("{0}: pid: {1:d} bme280 sensor fault - reset".format(str_datetime, os.getpid()))
+            sensor._is_setup = False
+            sensor.setup(mode=options.mode)
+            time.sleep(SLEEP_TIME)
+            continue
+
         if my_time % 60 == 0:
             if not first_read:
                 publish_mqtt(client, sensor_data, options, topics, file_handle, args.verbose)
