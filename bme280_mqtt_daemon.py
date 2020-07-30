@@ -98,8 +98,8 @@ def publish_mqtt(client, sensor_data, options, topics, file_handle, verbose=Fals
 
     hum = sensor_data.humidity + options.hoffset
 
-    temp_C = sensor_data.temperature
-    temp_F = 9.0/5.0 * temp_C + 32 + options.toffset
+    temp_C = sensor_data.temperature + options.toffset
+    temp_F = 9.0/5.0 * temp_C + 32
     temp_K = temp_C + 273.15
 
     press_A = sensor_data.pressure + options.poffset
