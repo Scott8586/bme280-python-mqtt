@@ -247,7 +247,7 @@ def start_bme280_sensor(args):
     if args.verbose:
         curr_datetime = datetime.datetime.now()
         str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
-        print("{0}: pid: {1:d}, bme280 sensor started on 0x{2:x}, mode: {3:s}, toffset: {4:0.1f} F, hoffset: {5:0.1f} %, poffset: {6:0.2f} hPa".
+        print("{0}: pid: {1:d}, bme280 sensor started on 0x{2:x}, mode: {3:s}, toffset: {4:0.1f} C, hoffset: {5:0.1f} %, poffset: {6:0.2f} hPa".
               format(str_datetime, os.getpid(), i2c_address, options.mode, options.toffset, options.hoffset, options.poffset), file=file_handle)
         file_handle.flush()
 
