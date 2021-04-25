@@ -98,8 +98,8 @@ def publish_mqtt(client, sensor_data, options, topics, file_handle, verbose=Fals
 
     hum = sensor_data.humidity + options.hoffset
 
-    temp_C = sensor_data.temperature
-    temp_F = 9.0/5.0 * temp_C + 32 + options.toffset
+    temp_C = sensor_data.temperature + options.toffset
+    temp_F = 9.0/5.0 * temp_C + 32
     temp_K = temp_C + 273.15
 
     press_A = sensor_data.pressure + options.poffset
@@ -244,12 +244,11 @@ def start_bme280_sensor(args):
     first_read = True # problems with the first read of the data? seems ok in forced mode.
     read_loop = True
 
-    if args.verbose:
-        curr_datetime = datetime.datetime.now()
-        str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
-        print("{0}: pid: {1:d}, bme280 sensor started on 0x{2:x}, mode: {3:s}, toffset: {4:0.1f} F, hoffset: {5:0.1f} %, poffset: {6:0.2f} hPa".
-              format(str_datetime, os.getpid(), i2c_address, options.mode, options.toffset, options.hoffset, options.poffset), file=file_handle)
-        file_handle.flush()
+    curr_datetime = datetime.datetime.now()
+    str_datetime = curr_datetime.strftime("%Y-%m-%d %H:%M:%S")
+    print("{0}: pid: {1:d}, bme280 sensor started on 0x{2:x}, mode: {3:s}, toffset: {4:0.1f} C, hoffset: {5:0.1f} %, poffset: {6:0.2f} hPa".
+          format(str_datetime, os.getpid(), i2c_address, options.mode, options.toffset, options.hoffset, options.poffset), file=file_handle)
+    file_handle.flush()
 
     while read_loop:
         curr_time = time.time()
