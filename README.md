@@ -27,15 +27,17 @@ The following packages are required beyond stock python3.5 to get this running:
 You can install these using pip3 like so:
 
 ```
-	pip3 install `cat requirements.txt`
+	sudo pip3 install -r requirements.txt
 ```
+
+Install the requirements in the `root` enviroment, or whichever enviroment make sense for you. Currently I run the daemon as root for easy access to /dev/i2c
 
 ### Notes
 
 configparser has recently been upgraded past python3.5, but that's the latest version of python on jesse, so you may have to install it like so:
 
 ```
-	pip3 install configparser==4.0.2
+	sudo pip3 install configparser==4.0.2
 ```
 
 ### Home Assistant
