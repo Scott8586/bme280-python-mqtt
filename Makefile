@@ -13,10 +13,10 @@ install.daemon: $(INSTDIR)/$(SCRIPT)
 install.service: $(SVCDIR)/$(SERVICE)
 
 build:
-	pip3 install `cat requirements.txt`
+	sudo pip3 install `cat requirements.txt`
 
 test:
-	./$(SCRIPT)
+	sudo ./$(SCRIPT)
 
 $(INSTDIR)/$(SCRIPT): $(SCRIPT)
 	cp $? $(INSTDIR)
