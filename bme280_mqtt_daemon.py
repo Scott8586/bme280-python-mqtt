@@ -31,7 +31,7 @@ except ImportError:
 import bme280
 
 MQTT_INI = "/etc/mqtt.ini"
-MQTT_SEC = "bme280"
+MQTT_SEC = "BME280"
 
 SEALEVEL_MIN = -999
 
@@ -136,15 +136,19 @@ def publish_mqtt(client, sensor_data, options, topics, file_handle, verbose=Fals
 
     else:
         data = {}
-        data['humidity'] = round(hum, 1)
-        data['temperature'] = round(temp_F, 1)
-        data['pressure'] = round(press_A, 2)
+
+        data[options.section] = {}
+        data[options.section]['Humidity'] = round(hum, 1)
+        data[options.section]['Temperature'] = round(temp_F, 1)
+        data[options.section]['Pressure'] = round(press_A, 2)
         if options.elevation > SEALEVEL_MIN:
-            data['sealevel'] = round(press_S, 2)
-        data['timestamp'] = curr_datetime.replace(microsecond=0).isoformat()
+            data[options.section]['Sealevel'] = round(press_S, 2)
+
+        data['TempUnit'] = 'F'
+        data['Time'] = curr_datetime.replace(microsecond=0).isoformat()
 
         #json_data = json.dumps(data)
-        client.publish(options.root_topic, json.dumps(data))
+        client.publish(options.root_topic + '/SENSOR', json.dumps(data))
 
     return
 
@@ -188,6 +192,8 @@ def start_bme280_sensor(args):
 
     mqtt_conf = configparser.ConfigParser()
     mqtt_conf.read(args.config)
+
+    options.section = args.section
 
     options.root_topic = mqtt_conf.get(args.section, 'topic')
 

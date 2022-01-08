@@ -3,28 +3,37 @@
 INSTDIR = /usr/local/bin
 SVCDIR  = /etc/systemd/system
 
+SCRIPT  = bme280_mqtt_daemon.py
+SERVICE = bme280-mqtt.service
+
 #install: $(INSTDIR)/bme280_mqtt_daemon.py $(SVCDIR)/bme280-mqtt.service
 
 install: install.daemon install.service
-install.daemon: $(INSTDIR)/bme280_mqtt_daemon.py
-install.service: $(SVCDIR)/bme280-mqtt.service
+install.daemon: $(INSTDIR)/$(SCRIPT)
+install.service: $(SVCDIR)/$(SERVICE)
 
-$(INSTDIR)/bme280_mqtt_daemon.py: bme280_mqtt_daemon.py
+build:
+	pip3 install `cat requirements.txt`
+
+test:
+	./$(SCRIPT)
+
+$(INSTDIR)/$(SCRIPT): $(SCRIPT)
 	cp $? $(INSTDIR)
 
-$(SVCDIR)/bme280-mqtt.service: bme280-mqtt.service
+$(SVCDIR)/$(SERVICE): $(SERVICE)
 	cp $? $(SVCDIR)
 	systemctl daemon-reload
-#	systemctl enable $?
+	systemctl enable $?
 #	systemctl start $?
 
 clobber: clobber.daemon clobber.service
 
 clobber.daemon:
-	rm -f $(INSTDIR)/bme280_mqtt_daemon.py
+	rm -f $(INSTDIR)/$(SCRIPT)
 
-clobber.service: bme280-mqtt.service
+clobber.service: $(SERVICE)
 	systemctl stop $?
 	systemctl disable $?
-	rm -f $(SVCDIR)/bme280-mqtt.service
+	rm -f $(SVCDIR)/$(SERVICE)
 	systemctl daemon-reload

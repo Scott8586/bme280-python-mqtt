@@ -13,7 +13,6 @@ I am currently running this code on a raspberry pi zero W.
 
 A systemd service file is also included and is part of the install process in the Makefile.
 
-
 ### Requirements
 
 The following packages are required beyond stock python3.5 to get this running:
@@ -25,6 +24,11 @@ The following packages are required beyond stock python3.5 to get this running:
 	smbus2
 	pimoroni-bme280
 
+You can install these using pip3 like so:
+
+```
+	pip3 install `cat requirements.txt`
+```
 
 ### Notes
 
@@ -41,19 +45,19 @@ The following configuration yaml could be used with Home Assistant:
 ```
 sensor:
  - platform: mqtt
-    state_topic: 'environment/den/bme280-temperature'
+    state_topic: 'environment/den/BME280_temperature'
     unit_of_measurement: '°F'
     name: 'Den Temperature'
   - platform: mqtt
-    state_topic: 'environment/den/bme280-humidity'
+    state_topic: 'environment/den/BME280_humidity'
     unit_of_measurement: '% RH'
     name: 'Den Humidity'    
   - platform: mqtt
-    state_topic: 'environment/den/bme280-pressure'
+    state_topic: 'environment/den/BME280_pressure'
     unit_of_measurement: 'hPa'
     name: 'Den Pressure'
   - platform: mqtt
-    state_topic: 'environment/den/bme280-sealevel-pressure'
+    state_topic: 'environment/den/BME280_sealevel-_pressure'
     unit_of_measurement: 'hPa'
     name: 'Den Sealevel Pressure'
 ```
