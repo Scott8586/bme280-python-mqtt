@@ -59,7 +59,7 @@ sensor:
     unit_of_measurement: 'hPa'
     name: 'Den Pressure'
   - platform: mqtt
-    state_topic: 'environment/den/BME280_sealevel-_pressure'
+    state_topic: 'environment/den/BME280_sealevel_pressure'
     unit_of_measurement: 'hPa'
     name: 'Den Sealevel Pressure'
 ```
