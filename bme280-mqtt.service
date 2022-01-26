@@ -1,12 +1,12 @@
 [Unit]
 Description=BME280 MQTT Service
-After=network.target
+After=network-online.target
 
 [Service]
 User=root
 #Restart=always
 Type=simple
-PIDFile=/var/run/bme280_mqtt.pid
+PIDFile=/run/bme280_mqtt.pid
 ExecStart=/usr/bin/python3 /usr/local/bin/bme280_mqtt_daemon.py -d
 
 [Install]

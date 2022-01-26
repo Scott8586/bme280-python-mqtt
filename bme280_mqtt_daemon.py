@@ -89,6 +89,7 @@ def on_connect(client, userdata, flags, return_code):
     if return_code != 0:
         print("Connected with result code: ", str(return_code))
     else:
+        client.connected_flag=True
         client.publish(status_topic, "Online", retain=True)
 
     
@@ -188,6 +189,7 @@ def start_bme280_sensor(args):
     else:
         file_handle = sys.stdout
 
+    mqtt.Client.connected_flag=False
     client = mqtt.Client(args.clientid)
 
     mqtt_conf = configparser.ConfigParser()
@@ -232,8 +234,13 @@ def start_bme280_sensor(args):
 
     client.on_connect = on_connect
 #    client.on_disconnect = on_disconnect
-    client.connect(host, port, 60)
     client.loop_start()
+    client.connect(host, port, 60)
+    #client.loop_start()
+
+    # Wait for valid connection
+    while not client.connected_flag: #wait in loop
+        time.sleep(10)
 
     # Initialise the BME280
     bus = SMBus(1)
@@ -286,6 +293,7 @@ def start_bme280_sensor(args):
     print("{0}: pid: {1:d}, bme280 sensor interrupted".format(str_datetime, os.getpid()), file=file_handle)
     client.publish(status_topic, "Offline", retain=True)
     
+    client.loop_stop()
     client.disconnect()
 
 
