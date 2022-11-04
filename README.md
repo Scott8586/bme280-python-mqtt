@@ -45,23 +45,20 @@ configparser has recently been upgraded past python3.5, but that's the latest ve
 The following configuration yaml could be used with Home Assistant:
 
 ```
-sensor:
- - platform: mqtt
-    state_topic: 'environment/den/BME280_temperature'
-    unit_of_measurement: '°F'
-    name: 'Den Temperature'
-  - platform: mqtt
-    state_topic: 'environment/den/BME280_humidity'
-    unit_of_measurement: '% RH'
-    name: 'Den Humidity'    
-  - platform: mqtt
-    state_topic: 'environment/den/BME280_pressure'
-    unit_of_measurement: 'hPa'
-    name: 'Den Pressure'
-  - platform: mqtt
-    state_topic: 'environment/den/BME280_sealevel_pressure'
-    unit_of_measurement: 'hPa'
-    name: 'Den Sealevel Pressure'
+mqtt:
+  sensor:
+    - state_topic: 'environment/den/BME280_temperature'
+      unit_of_measurement: '°F'
+      name: 'Den Temperature'
+    - state_topic: 'environment/den/BME280_humidity'
+      unit_of_measurement: '% RH'
+      name: 'Den Humidity'    
+    - state_topic: 'environment/den/BME280_pressure'
+      unit_of_measurement: 'hPa'
+      name: 'Den Pressure'
+    - state_topic: 'environment/den/BME280_sealevel_pressure'
+      unit_of_measurement: 'hPa'
+      name: 'Den Sealevel Pressure'
 ```
 
 And for lovelace display:
